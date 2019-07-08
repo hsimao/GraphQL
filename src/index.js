@@ -82,9 +82,28 @@ const typeDefs = `
   }
 
   type Mutation {
-    createUser(name: String!, email: String!, age: Int): User!
-    createPost(title: String!, body: String!, published: Boolean!, author: ID!): Post!
-    createComment(text: String!, author: ID!, post: ID!): Comment!
+    createUser(data: CreateUserInput): User!
+    createPost(data: CreatePostInput): Post!
+    createComment(data: CreateCommentInput): Comment!
+  }
+
+  input CreateUserInput {
+    name: String!
+    email: String!
+    age: Int
+  }
+
+  input CreatePostInput {
+    title: String!
+    body: String!
+    published: Boolean!
+    author: ID!
+  }
+
+  input CreateCommentInput {
+    text: String!
+    author: ID!
+    post: ID!
   }
 
   type User {
@@ -184,12 +203,12 @@ const resolvers = {
   // Mutation
   Mutation: {
     createUser(parent, args, ctx, info) {
-      const emailTaken = users.some(user => user.email === args.email);
+      const emailTaken = users.some(user => user.email === args.data.email);
       if (emailTaken) throw new Error("信箱已被使用");
 
       const user = {
         id: uuidv4(),
-        ...args
+        ...args.data
       };
 
       users.push(user);
@@ -197,7 +216,7 @@ const resolvers = {
       return user;
     },
     createPost(parent, args, ctx, info) {
-      const userExists = users.some(user => user.id === args.author);
+      const userExists = users.some(user => user.id === args.data.author);
 
       if (!userExists) {
         throw new Error("用戶不存在, 無法創建文章");
@@ -205,7 +224,7 @@ const resolvers = {
 
       const post = {
         id: uuidv4(),
-        ...args
+        ...args.data
       };
 
       posts.push(post);
@@ -214,14 +233,14 @@ const resolvers = {
     },
     createComment(parent, args, ctx, info) {
       // 檢查用戶是否存在
-      const userExists = users.some(user => user.id === args.author);
+      const userExists = users.some(user => user.id === args.data.author);
 
       if (!userExists) {
         throw new Error("該用戶未存在");
       }
 
       // 檢查文章是否存在, 且公開
-      const post = posts.find(post => post.id === args.post);
+      const post = posts.find(post => post.id === args.data.post);
 
       if (!post) {
         throw new Error("沒有該篇文章");
@@ -231,7 +250,7 @@ const resolvers = {
 
       const comment = {
         id: uuidv4(),
-        ...args
+        ...args.data
       };
 
       comments.push(comment);
