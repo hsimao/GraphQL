@@ -1,4 +1,5 @@
 import { GraphQLServer } from "graphql-yoga";
+import uuidv4 from "uuid/v4";
 
 // demo users data
 const users = [
@@ -78,6 +79,12 @@ const typeDefs = `
     users(query: String): [User!]!
     posts(query: String): [Post!]!
     comments(query:String): [Comment!]!
+  }
+
+  type Mutation {
+    createUser(name: String!, email: String!, age: Int): User!
+    createPost(title: String!, body: String!, published: Boolean!, author: ID!): Post!
+    createComment(text: String!, author: ID!, post: ID!): Comment!
   }
 
   type User {
@@ -171,6 +178,65 @@ const resolvers = {
     },
     post(parent, args, ctx, info) {
       return posts.find(post => post.id === parent.post);
+    }
+  },
+
+  // Mutation
+  Mutation: {
+    createUser(parent, args, ctx, info) {
+      const emailTaken = users.some(user => user.email === args.email);
+      if (emailTaken) throw new Error("信箱已被使用");
+
+      const user = {
+        id: uuidv4(),
+        ...args
+      };
+
+      users.push(user);
+
+      return user;
+    },
+    createPost(parent, args, ctx, info) {
+      const userExists = users.some(user => user.id === args.author);
+
+      if (!userExists) {
+        throw new Error("用戶不存在, 無法創建文章");
+      }
+
+      const post = {
+        id: uuidv4(),
+        ...args
+      };
+
+      posts.push(post);
+
+      return post;
+    },
+    createComment(parent, args, ctx, info) {
+      // 檢查用戶是否存在
+      const userExists = users.some(user => user.id === args.author);
+
+      if (!userExists) {
+        throw new Error("該用戶未存在");
+      }
+
+      // 檢查文章是否存在, 且公開
+      const post = posts.find(post => post.id === args.post);
+
+      if (!post) {
+        throw new Error("沒有該篇文章");
+      } else if (!post.published) {
+        throw new Error("文章尚未公開，無法留言");
+      }
+
+      const comment = {
+        id: uuidv4(),
+        ...args
+      };
+
+      comments.push(comment);
+
+      return comment;
     }
   }
 };
