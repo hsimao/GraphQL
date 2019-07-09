@@ -85,7 +85,9 @@ const typeDefs = `
     createUser(data: CreateUserInput): User!
     deleteUser(id: ID!): User!
     createPost(data: CreatePostInput): Post!
+    deletePost(id: ID!): Post!
     createComment(data: CreateCommentInput): Comment!
+    deleteComment(id: ID!): Comment!
   }
 
   input CreateUserInput {
@@ -242,6 +244,7 @@ const resolvers = {
       // 返回已刪除 user
       return deletedUser[0];
     },
+
     createPost(parent, args, ctx, info) {
       const userExists = users.some(user => user.id === args.data.author);
 
@@ -258,6 +261,20 @@ const resolvers = {
 
       return post;
     },
+    deletePost(parent, args, ctx, info) {
+      const postIndex = posts.findIndex(post => post.id === args.id);
+
+      if (postIndex === -1) throw new Error("此文章id不存在!");
+      // 刪除 post
+      const deletedPost = posts.splice(postIndex, 1);
+
+      // 刪除 post 關聯 comment
+      comments = comments.filter(comment => comment.post !== args.id);
+
+      // 返回已刪除 post
+      return deletedPost[0];
+    },
+
     createComment(parent, args, ctx, info) {
       // 檢查用戶是否存在
       const userExists = users.some(user => user.id === args.data.author);
@@ -283,6 +300,15 @@ const resolvers = {
       comments.push(comment);
 
       return comment;
+    },
+    deleteComment(parent, args, ctx, info) {
+      const commentIndex = comments.findIndex(comment => comment.id === args.id);
+
+      if (commentIndex === -1) throw new Error("此留言id不存在");
+
+      const deletedComment = comments.splice(commentIndex, 1);
+
+      return deletedComment[0];
     }
   }
 };
