@@ -2,7 +2,7 @@ import { GraphQLServer } from "graphql-yoga";
 import uuidv4 from "uuid/v4";
 
 // demo users data
-const users = [
+let users = [
   {
     id: "1",
     name: "Mars",
@@ -22,7 +22,7 @@ const users = [
   }
 ];
 
-const posts = [
+let posts = [
   {
     id: "1",
     title: "標題1",
@@ -45,7 +45,7 @@ const posts = [
   }
 ];
 
-const comments = [
+let comments = [
   {
     id: "101",
     text: "很棒的文章",
@@ -83,6 +83,7 @@ const typeDefs = `
 
   type Mutation {
     createUser(data: CreateUserInput): User!
+    deleteUser(id: ID!): User!
     createPost(data: CreatePostInput): Post!
     createComment(data: CreateCommentInput): Comment!
   }
@@ -214,6 +215,32 @@ const resolvers = {
       users.push(user);
 
       return user;
+    },
+    deleteUser(parent, args, ctx, info) {
+      const userIndex = users.findIndex(user => user.id === args.id);
+
+      if (userIndex === -1) throw new Error("此用戶id不存在!");
+
+      // 刪除user
+      const deletedUser = users.splice(userIndex, 1);
+
+      // 刪除 user 相關的 post
+      posts = posts.filter(post => {
+        const match = post.author === args.id;
+
+        // 刪除 post 相關的 comment
+        if (match) {
+          comments = comments.filter(comment => comment.post !== post.id);
+        }
+
+        return !match;
+      });
+
+      // 刪除 user 相關的 comment
+      comments = comments.filter(comment => comment.author !== args.id);
+
+      // 返回已刪除 user
+      return deletedUser[0];
     },
     createPost(parent, args, ctx, info) {
       const userExists = users.some(user => user.id === args.data.author);
