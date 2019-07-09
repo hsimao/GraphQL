@@ -1,165 +1,33 @@
 import { GraphQLServer } from "graphql-yoga";
 import uuidv4 from "uuid/v4";
-
-// demo users data
-let users = [
-  {
-    id: "1",
-    name: "Mars",
-    email: "mars@gmail.com",
-    age: 32
-  },
-  {
-    id: "2",
-    name: "Sally",
-    email: "sally@gmail.com"
-  },
-  {
-    id: "3",
-    name: "Jack",
-    email: "jack@gmail.com",
-    age: 35
-  }
-];
-
-let posts = [
-  {
-    id: "1",
-    title: "標題1",
-    body: "body1...",
-    published: true,
-    author: "3"
-  },
-  {
-    id: "2",
-    title: "標題2",
-    published: false,
-    author: "3"
-  },
-  {
-    id: "3",
-    title: "文章3",
-    body: "body3...",
-    published: false,
-    author: "3"
-  }
-];
-
-let comments = [
-  {
-    id: "101",
-    text: "很棒的文章",
-    author: "1",
-    post: "1"
-  },
-  {
-    id: "102",
-    text: "nice post",
-    author: "3",
-    post: "1"
-  },
-  {
-    id: "103",
-    text: "我不喜歡這篇文章",
-    author: "3",
-    post: "2"
-  },
-  {
-    id: "104",
-    text: "大神～請收下我的膝蓋",
-    author: "3",
-    post: "3"
-  }
-];
-
-// 定義 schmea type
-// String, Boolean, Int, Float, ID
-const typeDefs = `
-  type Query {
-    users(query: String): [User!]!
-    posts(query: String): [Post!]!
-    comments(query:String): [Comment!]!
-  }
-
-  type Mutation {
-    createUser(data: CreateUserInput): User!
-    deleteUser(id: ID!): User!
-    createPost(data: CreatePostInput): Post!
-    deletePost(id: ID!): Post!
-    createComment(data: CreateCommentInput): Comment!
-    deleteComment(id: ID!): Comment!
-  }
-
-  input CreateUserInput {
-    name: String!
-    email: String!
-    age: Int
-  }
-
-  input CreatePostInput {
-    title: String!
-    body: String!
-    published: Boolean!
-    author: ID!
-  }
-
-  input CreateCommentInput {
-    text: String!
-    author: ID!
-    post: ID!
-  }
-
-  type User {
-    id: ID!
-    name: String!
-    email: String!
-    age: Int,
-    posts: [Post!]!
-    comments: [Comment!]!
-  }
-
-  type Post {
-    id: ID!
-    title: String!
-    body: String
-    published: Boolean!
-    author: User!
-    comments: [Comment!]!
-  }
-
-  type Comment {
-    id: ID!
-    text: String!
-    author: User!
-    post: Post!
-  }
-`;
+import db from "./db";
+console.log("db", db.comments);
 
 // 定義解析器 Resolvers
 const resolvers = {
   Query: {
-    users(parent, args, ctx, info) {
-      if (!args.query) return users;
+    users(parent, args, { db }, info) {
+      if (!args.query) return db.users;
 
-      return users.filter(user => {
+      return db.users.filter(user => {
         return user.name.toLowerCase().includes(args.query.toLowerCase());
       });
     },
 
-    posts(parent, args, ctx, info) {
-      if (!args.query) return posts;
+    posts(parent, args, { db }, info) {
+      if (!args.query) return db.posts;
 
-      return posts.filter(post => {
+      return db.posts.filter(post => {
         const isTitleMatch = post.title.toLowerCase().includes(args.query.toLowerCase());
         const isBodyMatch = post.body && post.body.toLowerCase().includes(args.query.toLowerCase());
         return isTitleMatch || isBodyMatch;
       });
     },
 
-    comments(parent, args, ctx, info) {
-      if (!args.query) return comments;
+    comments(parent, args, { db }, info) {
+      if (!args.query) return db.comments;
 
-      return comments.filter(comment => {
+      return db.comments.filter(comment => {
         const isIdMatch = comment.id.toLowerCase().includes(args.query.toLowerCase());
         const isTextMatch = comment.text.toLowerCase().includes(args.query.toLowerCase());
         return isIdMatch || isTextMatch;
@@ -171,42 +39,42 @@ const resolvers = {
   Post: {
     // post 跟 user 關聯
     // 在搜尋 posts 時如果有指定到顯示 author 資料，將會執行以下方法
-    author(parent, args, ctx, info) {
-      return users.find(user => user.id === parent.author);
+    author(parent, args, { db }, info) {
+      return db.users.find(user => user.id === parent.author);
     },
     // post 跟 comment 關聯
     // 在搜尋 posts 時如果有指定到顯示 comments 資料，將會執行以下方法
-    comments(parent, args, ctx, info) {
-      return comments.filter(comment => comment.post === parent.id);
+    comments(parent, args, { db }, info) {
+      return db.comments.filter(comment => comment.post === parent.id);
     }
   },
 
   // user 跟 post 關聯
   User: {
     // user 跟 post 關聯
-    posts(parent, args, ctx, info) {
-      return posts.filter(post => post.author === parent.id);
+    posts(parent, args, { db }, info) {
+      return db.posts.filter(post => post.author === parent.id);
     },
     // user 跟 comment 關聯
-    comments(parent, args, ctx, info) {
-      return comments.filter(comment => comment.author === parent.id);
+    comments(parent, args, { db }, info) {
+      return db.comments.filter(comment => comment.author === parent.id);
     }
   },
 
   // comment 跟 user 關聯
   Comment: {
-    author(parent, args, ctx, info) {
-      return users.find(user => user.id === parent.author);
+    author(parent, args, { db }, info) {
+      return db.users.find(user => user.id === parent.author);
     },
-    post(parent, args, ctx, info) {
-      return posts.find(post => post.id === parent.post);
+    post(parent, args, { db }, info) {
+      return db.posts.find(post => post.id === parent.post);
     }
   },
 
   // Mutation
   Mutation: {
-    createUser(parent, args, ctx, info) {
-      const emailTaken = users.some(user => user.email === args.data.email);
+    createUser(parent, args, { db }, info) {
+      const emailTaken = db.users.some(user => user.email === args.data.email);
       if (emailTaken) throw new Error("信箱已被使用");
 
       const user = {
@@ -214,39 +82,39 @@ const resolvers = {
         ...args.data
       };
 
-      users.push(user);
+      db.users.push(user);
 
       return user;
     },
-    deleteUser(parent, args, ctx, info) {
-      const userIndex = users.findIndex(user => user.id === args.id);
+    deleteUser(parent, args, { db }, info) {
+      const userIndex = db.users.findIndex(user => user.id === args.id);
 
       if (userIndex === -1) throw new Error("此用戶id不存在!");
 
       // 刪除user
-      const deletedUser = users.splice(userIndex, 1);
+      const deletedUser = db.users.splice(userIndex, 1);
 
       // 刪除 user 相關的 post
-      posts = posts.filter(post => {
+      db.posts = db.posts.filter(post => {
         const match = post.author === args.id;
 
         // 刪除 post 相關的 comment
         if (match) {
-          comments = comments.filter(comment => comment.post !== post.id);
+          db.comments = db.comments.filter(comment => comment.post !== post.id);
         }
 
         return !match;
       });
 
       // 刪除 user 相關的 comment
-      comments = comments.filter(comment => comment.author !== args.id);
+      db.comments = db.comments.filter(comment => comment.author !== args.id);
 
       // 返回已刪除 user
       return deletedUser[0];
     },
 
-    createPost(parent, args, ctx, info) {
-      const userExists = users.some(user => user.id === args.data.author);
+    createPost(parent, args, { db }, info) {
+      const userExists = db.users.some(user => user.id === args.data.author);
 
       if (!userExists) {
         throw new Error("用戶不存在, 無法創建文章");
@@ -257,34 +125,34 @@ const resolvers = {
         ...args.data
       };
 
-      posts.push(post);
+      db.posts.push(post);
 
       return post;
     },
-    deletePost(parent, args, ctx, info) {
-      const postIndex = posts.findIndex(post => post.id === args.id);
+    deletePost(parent, args, { db }, info) {
+      const postIndex = db.posts.findIndex(post => post.id === args.id);
 
       if (postIndex === -1) throw new Error("此文章id不存在!");
       // 刪除 post
-      const deletedPost = posts.splice(postIndex, 1);
+      const deletedPost = db.posts.splice(postIndex, 1);
 
       // 刪除 post 關聯 comment
-      comments = comments.filter(comment => comment.post !== args.id);
+      db.comments = db.comments.filter(comment => comment.post !== args.id);
 
       // 返回已刪除 post
       return deletedPost[0];
     },
 
-    createComment(parent, args, ctx, info) {
+    createComment(parent, args, { db }, info) {
       // 檢查用戶是否存在
-      const userExists = users.some(user => user.id === args.data.author);
+      const userExists = db.users.some(user => user.id === args.data.author);
 
       if (!userExists) {
         throw new Error("該用戶未存在");
       }
 
       // 檢查文章是否存在, 且公開
-      const post = posts.find(post => post.id === args.data.post);
+      const post = db.posts.find(post => post.id === args.data.post);
 
       if (!post) {
         throw new Error("沒有該篇文章");
@@ -297,16 +165,16 @@ const resolvers = {
         ...args.data
       };
 
-      comments.push(comment);
+      db.comments.push(comment);
 
       return comment;
     },
-    deleteComment(parent, args, ctx, info) {
-      const commentIndex = comments.findIndex(comment => comment.id === args.id);
+    deleteComment(parent, args, { db }, info) {
+      const commentIndex = db.comments.findIndex(comment => comment.id === args.id);
 
       if (commentIndex === -1) throw new Error("此留言id不存在");
 
-      const deletedComment = comments.splice(commentIndex, 1);
+      const deletedComment = db.comments.splice(commentIndex, 1);
 
       return deletedComment[0];
     }
@@ -314,8 +182,12 @@ const resolvers = {
 };
 
 const server = new GraphQLServer({
-  typeDefs,
-  resolvers
+  typeDefs: "./src/schema.graphql",
+  resolvers,
+  // 將要通用的變數放置於 content, 之後即可在 resolvers 內透過 ctx 取得
+  context: {
+    db
+  }
 });
 
 server.start(() => {
