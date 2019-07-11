@@ -40,6 +40,32 @@ const Mutation = {
     // 返回已刪除 user
     return deletedUser[0];
   },
+  updateUser(parent, args, { db }, info) {
+    const { id, data } = args;
+    const user = db.users.find(user => user.id === id);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+    // 檢查 email
+    if (typeof data.email === "string") {
+      const emailTaken = db.users.some(user => user.email === data.email);
+
+      if (emailTaken) throw new Error("此 Email 已經有用戶使用");
+
+      user.email = data.email;
+    }
+
+    if (typeof data.name === "string") {
+      user.name = data.name;
+    }
+
+    if (typeof data.age !== "undefined") {
+      user.age = data.age;
+    }
+
+    return user;
+  },
 
   createPost(parent, args, { db }, info) {
     const userExists = db.users.some(user => user.id === args.data.author);
