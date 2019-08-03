@@ -82,27 +82,42 @@ const Mutation = {
     db.posts.push(post);
 
     if (args.data.published) {
-      pubsub.publish("post", { post });
+      pubsub.publish("post", {
+        post: {
+          mutation: "CREATED",
+          data: post
+        }
+      });
     }
 
     return post;
   },
-  deletePost(parent, args, { db }, info) {
+  deletePost(parent, args, { db, pubsub }, info) {
     const postIndex = db.posts.findIndex(post => post.id === args.id);
 
     if (postIndex === -1) throw new Error("此文章id不存在!");
     // 刪除 post
-    const deletedPost = db.posts.splice(postIndex, 1);
+    const [post] = db.posts.splice(postIndex, 1);
 
     // 刪除 post 關聯 comment
     db.comments = db.comments.filter(comment => comment.post !== args.id);
 
+    // 公開的文章才觸發監聽功能
+    if (post.published) {
+      pubsub.publish("post", {
+        post: {
+          mutation: "DELETED",
+          data: post
+        }
+      });
+    }
     // 返回已刪除 post
-    return deletedPost[0];
+    return post;
   },
-  updatePost(parent, args, { db }, info) {
+  updatePost(parent, args, { db, pubsub }, info) {
     const { id, data } = args;
     const post = db.posts.find(post => post.id === id);
+    const originalPost = { ...post };
 
     if (!post) {
       throw new Error("此文章不存在！");
@@ -118,6 +133,33 @@ const Mutation = {
 
     if (typeof data.published === "boolean") {
       post.published = data.published;
+
+      // 判斷最初文章的公開狀態與更新完後的公開狀態, 公開 => 不公開 : 調用 deleted 通知
+      if (originalPost.published && !post.published) {
+        pubsub.publish("post", {
+          post: {
+            mutation: "DELETED",
+            data: originalPost
+          }
+        });
+
+        // 不公開 => 公開 : 調用 created 通知
+      } else if (!originalPost.published && post.published) {
+        pubsub.publish("post", {
+          post: {
+            mutation: "CREATED",
+            data: post
+          }
+        });
+        // 沒更改到公開狀態，但文章為公開, 調用 update 通知
+      } else if (post.published) {
+        pubsub.publish("post", {
+          post: {
+            mutation: "UPDATED",
+            data: post
+          }
+        });
+      }
     }
 
     return post;
